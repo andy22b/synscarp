@@ -14,3 +14,5 @@ dependencies:
   - jupyterlab >= 3.0.9
   - pip
   - git
+  - pip:
+      - git+https://github.com/andy22b/synthetic_offsets/#subdirectory=src/synthetic_offsets
