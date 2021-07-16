@@ -1,35 +1,53 @@
 from typing import Union
+import os
 import numpy as np
-from shapely.geometry import LineString, Polygon, Point
+from shapely.geometry import LineString, Polygon, box
 from synthetic_offsets.utilities import extend_trace, split_polygon_by_line, calculate_dip_direction, calculate_strike
 from synthetic_offsets.utilities import reverse_bearing, normalize_bearing, move_polygon_xy
 import geopandas as gpd
-
-
-
+import rasterio
 
 
 class Fault:
     """
     To handle fault trace
     """
-    def __init__(self, trace: LineString, dip: Union[float, int], boundary: Polygon = None, slip: Union[float, int] = None,
-                 rake: Union[float, int] = None, flip_dip_direction: bool = False):
+    def __init__(self, trace: Union[LineString, str], dip: Union[float, int], boundary: Union[Polygon, str] = None, slip: Union[float, int] = None,
+                 rake: Union[float, int] = None, dip_direction: float = None, flip_dip_direction: bool = False, crs=2193):
         self._trace, self._dip, self._dip_dir_str, self.dip_dir_float = (None,) * 4
         self._boundary, self._dip_direction = (None,) * 2
         self._clipped_trace, self._clipped_moved_trace, self._moved_trace = (None,) * 3
 
         print("Initializing Fault object...")
-        if flip_dip_direction:
-            self.dip_direction = reverse_bearing(calculate_dip_direction(trace))
+        if dip_direction is not None:
+            self.dip_direction = normalize_bearing(dip_direction)
         else:
-            self.dip_direction = calculate_dip_direction(trace)
+            if flip_dip_direction:
+                self.dip_direction = reverse_bearing(calculate_dip_direction(trace))
+            else:
+                self.dip_direction = calculate_dip_direction(trace)
 
-        self.trace = trace
+        assert isinstance(trace, (LineString, str))
+        if isinstance(trace, str):
+            assert os.path.exists(trace)
+            gdf = gpd.read_file("simplified_papatea.shp")
+            self.trace = list(gdf.geometry.explode())[0]
+        else:
+            self.trace = trace
+
         self.dip = dip
-        self.boundary = boundary
-
+        if isinstance(boundary, str):
+            assert os.path.exists(boundary)
+            with rasterio.open(boundary) as src:
+                self.boundary = box(*src.bounds)
+        else:
+            self.boundary = boundary
         self.clipped_trace = self.trace_within_boundary(self.trace)
+        self.crs = crs
+
+        self.rake = rake
+        self.slip = slip
+
 
 
     @property
@@ -87,8 +105,31 @@ class Fault:
         return dd_vec
 
     @property
+    def up_dip_vector(self):
+        udv = self.down_dip_vector[:]
+        udv[-1] = -1 / udv[-1]
+        return udv / np.linalg.norm(udv)
+    
+    @property
+    def along_strike_vector(self):
+        return np.array([np.sin(np.radians(self.dip_direction - 90.)),
+                         np.cos(np.radians(self.dip_direction - 90.)), 0.])
+
+    @property
     def clipped_trace(self):
         return self._clipped_trace
+    
+    def slip_rake_to_3d(self, slip: float, rake: float):
+        ud_cont = slip * np.sin(np.radians(rake)) * self.up_dip_vector
+        ss_cont = slip * np.cos(np.radians(rake)) * self.along_strike_vector
+        return ud_cont + ss_cont
+    
+    @property
+    def slip_and_rake(self):
+        if not any([x is None for x in (self.slip, self.rake)]):
+            return self.slip_rake_to_3d(self.slip, self.rake)
+        else:
+            return None, None, None
 
     @clipped_trace.setter
     def clipped_trace(self, trace: LineString):
@@ -149,12 +190,15 @@ class Fault:
         else:
             raise ValueError("Cannot tell hanging wall and footwall apart!")
 
-        return hanging_wall, footwall
+        return gpd.GeoSeries(hanging_wall, crs=self.crs), gpd.GeoSeries(footwall, crs=self.crs)
 
     def moved_footwall_hangingwall_polygons(self, clipped_trace: LineString, x_shift: float, y_shift: float):
         hw, fw = self.footwall_and_hangingwall_polygons(clipped_trace)
-        hw_shifted = move_polygon_xy(hw, x_shift, y_shift)
-        return hw_shifted, fw
+        hw_shifted = move_polygon_xy(list(hw.geometry)[0], x_shift, y_shift)
+        overriding = hw_shifted.intersection(fw)
+        clipped_fw = fw.difference(overriding)
+
+        return gpd.GeoSeries(hw_shifted, crs=self.crs), gpd.GeoSeries(clipped_fw, crs=self.crs)
 
 
 

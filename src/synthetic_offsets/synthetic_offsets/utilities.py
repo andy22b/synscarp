@@ -2,6 +2,7 @@ from typing import Union
 import numpy as np
 from shapely.geometry import LineString, Point, Polygon
 from shapely.ops import polygonize, unary_union, linemerge
+import geopandas as gpd
 
 
 def bounds_tuple_to_polygon(bounds: tuple):
@@ -235,9 +236,13 @@ def move_polygon(polygon:Polygon, azimuth: Union[float, int], distance: Union[fl
     moved_poly = move_line(polygon.exterior, azimuth, distance)
     return Polygon(moved_poly)
 
+# def move_polygon_gpd(polygon:Polygon, azimuth: Union[float, int], distance: Union[float, int], crs: int = 2193):
+
 def move_polygon_xy(polygon: Polygon, xshift: float, yshift: float):
     moved_poly = move_line_xy(polygon.exterior, xshift, yshift)
-    return Polygon(moved_poly)
+    return gpd.GeoSeries(Polygon(moved_poly), crs=2193)
+
+
 
 
 def between_moved_lines(line1: LineString, line2: LineString):
