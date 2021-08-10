@@ -73,10 +73,8 @@ def deform_dem(dem: str, out_tif: str, shifted_hw: gpd.GeoSeries, clipped_fw: gp
     hwx_projected = hwx.rio.reproject_match(fwx, resampling=Resampling.bilinear)
     hwx.close()
     hwx_clipped = hwx_projected.rio.clip(shifted_hw.geometry)
-    # hwx_clipped.rio.to_raster("hwx_clipped.tif")
     hwx_projected.close()
     hwx_padded = hwx_clipped.rio.pad_box(*fwx.rio.bounds())
-    # hwx_padded.rio.to_raster("hwx_padded_early.tif")
     hwx_clipped.close()
 
     # Set NaNs to zero
@@ -86,7 +84,6 @@ def deform_dem(dem: str, out_tif: str, shifted_hw: gpd.GeoSeries, clipped_fw: gp
     fwx.data[np.abs(fwx.data) > 10000.] = 0.
     hwx_padded.data += fwx.data
     fwx.close()
-    # hwx_padded.rio.to_raster("hwx_padded.tif")
 
     # To deal with holes
     # Set insides of holes to nan
@@ -115,8 +112,6 @@ def deform_dem(dem: str, out_tif: str, shifted_hw: gpd.GeoSeries, clipped_fw: gp
             filled_hole_clipped.close()
             filled_hole.close()
             clipped_hole.close()
-
-
 
         # Set nans to zero to add filled holes
         clipped_projected.data[clipped_projected.data > 10000.] = 0.
