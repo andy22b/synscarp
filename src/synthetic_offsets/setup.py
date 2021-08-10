@@ -11,7 +11,7 @@ install_requires = ["numpy>=1.17",
                     "jupyterlab>=3.0.9"]
 
 setup(name='synthetic_offsets',
-      version='0.0.1',
+      version='0.0.2',
       description='Simulation of offsets',
       author='Andy Howell',
       author_email='andrew.howell@canterbury.ac.nz',

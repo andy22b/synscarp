@@ -2,7 +2,7 @@ from typing import Union
 import os
 import numpy as np
 from shapely.geometry import LineString, Polygon, box
-from synthetic_offsets.utilities import extend_trace, split_polygon_by_line, calculate_dip_direction, calculate_strike
+from synthetic_offsets.utilities import extend_trace, split_polygon_by_line, calculate_dip_direction
 from synthetic_offsets.utilities import reverse_bearing, normalize_bearing, move_polygon_xy
 import geopandas as gpd
 import rasterio
@@ -30,7 +30,7 @@ class Fault:
         assert isinstance(trace, (LineString, str))
         if isinstance(trace, str):
             assert os.path.exists(trace)
-            gdf = gpd.read_file("simplified_papatea.shp")
+            gdf = gpd.read_file(trace)
             self.trace = list(gdf.geometry.explode())[0]
         else:
             self.trace = trace
@@ -106,9 +106,10 @@ class Fault:
 
     @property
     def up_dip_vector(self):
-        udv = self.down_dip_vector[:]
-        udv[-1] = -1 / udv[-1]
-        return udv / np.linalg.norm(udv)
+        # udv = self.down_dip_vector[:]
+        # udv[-1] = -1 / udv[-1]
+        # return udv / np.linalg.norm(udv)
+        return -1. * self.down_dip_vector
     
     @property
     def along_strike_vector(self):
