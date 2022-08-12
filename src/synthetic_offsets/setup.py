@@ -15,6 +15,5 @@ setup(name='synthetic_offsets',
       description='Simulation of offsets',
       author='Andy Howell',
       author_email='andrew.howell@canterbury.ac.nz',
-      packages=find_packages(),
-      install_requires=install_requires
+      packages=find_packages()
       )
