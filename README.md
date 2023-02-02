@@ -6,4 +6,4 @@ Code to create synthetic fault scarps in DEMs, with an example for a fault scarp
 The easiest way to install this module is using Miniforge (https://conda-forge.org/miniforge/). See https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#id2 for instructions on creating a conda environment.
 
 ## Waiau Toa example
-An example jupyter notebook is found in 
+An example jupyter notebook is found in `src/synthetic_offsets/
