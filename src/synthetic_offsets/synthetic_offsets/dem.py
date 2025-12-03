@@ -78,16 +78,17 @@ def deform_dem(dem: str, out_tif: str, shifted_hw: gpd.GeoSeries, clipped_fw: gp
     hwx_clipped.close()
 
     # Set NaNs to zero
-    hwx_padded.data[np.abs(hwx_padded.data) > 10000.] = 0.
+    hwx_padded.data[np.abs(hwx_padded.data) > 9990.] = 0.
 
     # Combine shifted hangingwall and footwall datasets
-    fwx.data[np.abs(fwx.data) > 10000.] = 0.
+    fwx.data[np.abs(fwx.data) > 9990.] = 0.
     hwx_padded.data += fwx.data
     fwx.close()
 
     # To deal with holes
     # Set insides of holes to nan
     clipped_projected = hwx_padded.rio.clip(holes.geometry, invert=True)
+    clipped_projected.data[clipped_projected.data == 0.] = np.nan
     hwx_padded.close()
 
     if holes is not None:
@@ -105,7 +106,7 @@ def deform_dem(dem: str, out_tif: str, shifted_hw: gpd.GeoSeries, clipped_fw: gp
             # make same size as combined hw-fw dataset
             padded_hole = filled_hole_clipped.rio.pad_box(*clipped_projected.rio.bounds())
             # Set nans to zeros
-            padded_hole.data[np.abs(padded_hole.data) > 10000.] = 0.
+            padded_hole.data[np.abs(padded_hole.data) > 9990.] = 0.
             # Add to storage dataset
             hole_filling += padded_hole.data
             padded_hole.close()
@@ -114,7 +115,7 @@ def deform_dem(dem: str, out_tif: str, shifted_hw: gpd.GeoSeries, clipped_fw: gp
             clipped_hole.close()
 
         # Set nans to zero to add filled holes
-        clipped_projected.data[clipped_projected.data > 10000.] = 0.
+        clipped_projected.data[np.abs(clipped_projected.data) > 9990.] = 0.
         clipped_projected.data += hole_filling
         # Set back to nans for writing
         clipped_projected.data[clipped_projected.data == 0.] = np.nan

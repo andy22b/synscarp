@@ -5,6 +5,63 @@ from typing import Union
 from netCDF4 import Dataset
 import rasterio
 from rasterio.warp import calculate_default_transform, reproject, Resampling
+from shapely.geometry import LineString
+
+
+def profile_tiff_along_linestring(tiff: str,
+                                  line: LineString,
+                                  n_samples: int = None,
+                                  spacing: float = None,
+                                  include_xy: bool = False,
+                                  nan_threshold: float = 10000.0):
+    """
+    Sample a GeoTIFF along a Shapely LineString and return a 1D profile.
+
+    Either provide `n_samples` (number of points along the line) or `spacing`
+    (point spacing in the line's coordinate units). If both are provided,
+    `spacing` takes precedence. If neither is provided, defaults to `n_samples=200`.
+
+    Assumes the line is in the same CRS as the raster. If not, reproject the
+    line to the raster CRS beforehand.
+
+    :param tiff: Path to GeoTIFF
+    :param line: Shapely LineString in the raster's CRS
+    :param n_samples: Number of points to sample along the line
+    :param spacing: Spacing along the line (same units as line coordinates)
+    :param include_xy: If True, also return arrays of x and y for the sampled points
+    :param nan_threshold: Values with abs(value) > threshold are treated as NaN
+    :return: (distance, values) or (distance, values, x, y) if include_xy
+    """
+    assert os.path.exists(tiff), "GeoTIFF does not exist"
+    assert isinstance(line, LineString), "line must be a Shapely LineString"
+
+    with rasterio.open(tiff) as src:
+        # Determine sampling positions along the line
+        line_len = line.length
+        if spacing is not None and spacing > 0:
+            n = max(2, int(np.floor(line_len / spacing)) + 1)
+        else:
+            n = n_samples if n_samples is not None and n_samples > 1 else 200
+
+        # Distances from 0 to line_len
+        distances = np.linspace(0.0, line_len, n)
+        # Interpolate points along the line
+        points = [line.interpolate(d) for d in distances]
+        coords = [(p.x, p.y) for p in points]
+
+        # Sample raster at the coordinates
+        sampled = list(src.sample(coords))
+        values = np.array([s[0] for s in sampled], dtype=float)
+
+        # Apply NaN threshold filtering similar to other readers
+        # values[(values < -nan_threshold) | (values > nan_threshold)] = np.nan
+
+    if include_xy:
+        xs = np.array([c[0] for c in coords])
+        ys = np.array([c[1] for c in coords])
+        return distances, values, xs, ys
+    else:
+        return distances, values
 
 
 def read_grid(raster_file: str, nan_threshold: Union[float, int] = 100,
@@ -85,8 +142,8 @@ def read_grid(raster_file: str, nan_threshold: Union[float, int] = 100,
 
     # Set values above threshold to NaN
     if no_data != np.nan:
-        z[z < -nan_threshold] = np.NaN
-        z[z > nan_threshold] = np.NaN
+        z[z < -nan_threshold] = np.nan
+        z[z > nan_threshold] = np.nan
 
     # Close raster
     raster.close()

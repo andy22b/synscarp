@@ -2,13 +2,15 @@ name: synscarp
 channels:
   - conda-forge
 dependencies:
-  - python=3.9
+  - python=3.12
   - numpy
   - rasterio
   - geopandas
   - jupyterlab
   - rioxarray
+  - netcdf4
   - pip
   - git
+  - matplotlib
   - pip:
       - git+https://github.com/andy22b/synscarp/#subdirectory=src/synthetic_offsets
