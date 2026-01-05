@@ -41,29 +41,8 @@ from synthetic_offsets.io.array_operations import profile_tiff_along_linestring
 u
 
 # %%
-profile_tiff_along_linestring("kakapo_scarp.tif", across_lines.geometry.iloc[0], spacing=1)
-
-# %%
-from synthetic_offsets.io.array_operations import read_tiff, read_grid
-
-
-
-# %%
-line = across_lines.geometry.iloc[1]
-x, y, z = read_tiff("kakapo_scarp.tif", window=line.bounds, make_y_ascending=True, nan_threshold=1.e4)
-
-# %%
-z
-
-# %%
-import numpy as np
-from scipy.interpolate import RegularGridInterpolator
-distances = np.arange(0., line.length, 1.)
-sample_points = [line.interpolate(d) for d in distances]
-sample_x, sample_y = np.array([[point.x, point.y] for point in sample_points]).T
-
-interp_func = RegularGridInterpolator((y, x), z, bounds_error=False, fill_value=np.nan)
-profile_z = interp_func(np.array([sample_y, sample_x]).T)
+# profile_tiff_along_linestring("kakapo_scarp.tif", across_lines.geometry.iloc[0], spacing=1)
+distances, profile_z = profile_tiff_along_linestring("kakapo_scarp.tif", across_lines.geometry.iloc[1], spacing=1)
 
 from matplotlib import pyplot as plt
 plt.plot(distances, profile_z)
@@ -72,13 +51,6 @@ plt.ylabel("Elevation (m)")
 # plt.ylim(613,615)
 plt.show()
 
-# %%
-read_grid("BU23.tif")
-
-# %%
-import rasterio
-raster = rasterio.open("kakapo_scarp.tif")
-raster.close()
 
 
 

@@ -3,14 +3,15 @@ import numpy as np
 import os
 from typing import Union
 from netCDF4 import Dataset
+from pyparsing import line
 import rasterio
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 from shapely.geometry import LineString
+from scipy.interpolate import RegularGridInterpolator
 
 
 def profile_tiff_along_linestring(tiff: str,
                                   line: LineString,
-                                  n_samples: int = None,
                                   spacing: float = None,
                                   include_xy: bool = False,
                                   nan_threshold: float = 10000.0):
@@ -35,33 +36,18 @@ def profile_tiff_along_linestring(tiff: str,
     assert os.path.exists(tiff), "GeoTIFF does not exist"
     assert isinstance(line, LineString), "line must be a Shapely LineString"
 
-    with rasterio.open(tiff) as src:
-        # Determine sampling positions along the line
-        line_len = line.length
-        if spacing is not None and spacing > 0:
-            n = max(2, int(np.floor(line_len / spacing)) + 1)
-        else:
-            n = n_samples if n_samples is not None and n_samples > 1 else 200
+    distances = np.arange(0., line.length, 1.)
+    sample_points = [line.interpolate(d) for d in distances]
+    sample_x, sample_y = np.array([[point.x, point.y] for point in sample_points]).T
 
-        # Distances from 0 to line_len
-        distances = np.linspace(0.0, line_len, n)
-        # Interpolate points along the line
-        points = [line.interpolate(d) for d in distances]
-        coords = [(p.x, p.y) for p in points]
+    grid_x, grid_y, grid_z = read_tiff(tiff, window=line.bounds, nan_threshold=nan_threshold)
 
-        # Sample raster at the coordinates
-        sampled = list(src.sample(coords))
-        values = np.array([s[0] for s in sampled], dtype=float)
-
-        # Apply NaN threshold filtering similar to other readers
-        # values[(values < -nan_threshold) | (values > nan_threshold)] = np.nan
-
+    interp_func = RegularGridInterpolator((grid_y, grid_x), grid_z, bounds_error=False, fill_value=np.nan)
+    profile_z = interp_func(np.array([sample_y, sample_x]).T)
     if include_xy:
-        xs = np.array([c[0] for c in coords])
-        ys = np.array([c[1] for c in coords])
-        return distances, values, xs, ys
+        return distances, profile_z, sample_x, sample_y
     else:
-        return distances, values
+        return distances, profile_z
 
 
 def read_grid(raster_file: str, nan_threshold: Union[float, int] = 100,
